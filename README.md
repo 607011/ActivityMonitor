@@ -1,9 +1,23 @@
 # CPU Activity Monitor
 
+[![CI](https://github.com/607011/ActivityMonitor/actions/workflows/ci.yml/badge.svg)](https://github.com/607011/ActivityMonitor/actions/workflows/ci.yml)
+[![Release](https://github.com/607011/ActivityMonitor/actions/workflows/release.yml/badge.svg)](https://github.com/607011/ActivityMonitor/actions/workflows/release.yml)
+![Binary size](https://img.shields.io/badge/binary%20size-%3C40%20KiB-brightgreen)
+
 A lightweight native Windows app (C++17, Win32/GDI) that shows CPU usage per
 logical core as a scrolling bar-chart history. Readings come from the
 Performance Data Helper (PDH) API; rendering is done with GDI (double
-buffered via a memory DC, no flicker).
+buffered via a memory DC, no flicker). The whole thing compiles down to a
+single `ActivityMonitor.exe` under **40 KiB** - no runtime DLLs beyond the
+standard Windows system libraries - and CI fails the build if that ever
+regresses (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+
+## Download
+
+Prebuilt binaries are published on the [Releases page](https://github.com/607011/ActivityMonitor/releases)
+for every version tag (`vX.Y.Z`), as a zip containing `ActivityMonitor.exe`
+plus a `.sha256` checksum file. See [Continuous integration](#continuous-integration)
+below for how these are built.
 
 ## How it works
 
@@ -60,6 +74,28 @@ MinGW-w64 also works (pdh/gdi32/user32/comctl32 are linked via
 ```bash
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build
+```
+
+## Continuous integration
+
+Two GitHub Actions workflows live in `.github/workflows/`:
+
+- **[`ci.yml`](.github/workflows/ci.yml)** runs on every push and pull
+  request against `main`: configures and builds a Release binary on
+  `windows-latest`, fails the build if `ActivityMonitor.exe` exceeds the
+  40 KiB size budget, and uploads it as a build artifact for inspection.
+- **[`release.yml`](.github/workflows/release.yml)** runs only when a tag
+  matching `vX.Y.Z` (e.g. `v1.0.0`) is pushed. It builds a Release binary
+  with that version baked into the executable's file properties (see
+  `src/version.h.in` / `src/resource.rc`), re-checks the size budget, zips
+  the exe together with the README, computes a SHA-256 checksum, and
+  publishes both as a GitHub Release with auto-generated release notes.
+
+To cut a release:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ## Customization
