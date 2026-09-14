@@ -3,6 +3,7 @@
 [![CI](https://github.com/607011/ActivityMonitor/actions/workflows/ci.yml/badge.svg)](https://github.com/607011/ActivityMonitor/actions/workflows/ci.yml)
 [![Release](https://github.com/607011/ActivityMonitor/actions/workflows/release.yml/badge.svg)](https://github.com/607011/ActivityMonitor/actions/workflows/release.yml)
 ![Binary size](https://img.shields.io/badge/binary%20size-%3C40%20KiB-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A lightweight native Windows app (C++17, Win32/GDI) that shows CPU usage per
 logical core as a scrolling bar-chart history. Readings come from the
@@ -111,3 +112,7 @@ git push origin v1.0.0
 - Colors: `kBarColor`, `kBackgroundColor`, `kPanelBgColor`, `kGridColor`,
   `kTextColor`, `kMutedTextColor` in `GraphWindow.cpp`.
 - Font candidates: the list in `GraphWindow::CreateMonospaceFont`.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
