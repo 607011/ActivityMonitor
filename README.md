@@ -12,6 +12,8 @@ single `ActivityMonitor.exe` under **40 KiB** - no runtime DLLs beyond the
 standard Windows system libraries - and CI fails the build if that ever
 regresses (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
 
+![Screenshot](docs/screenshot.png)
+
 ## Download
 
 Prebuilt binaries are published on the [Releases page](https://github.com/607011/ActivityMonitor/releases)
