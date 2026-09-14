@@ -22,7 +22,7 @@ for every version tag (`vX.Y.Z`), as a zip containing `ActivityMonitor.exe`
 plus a `.sha256` checksum file. See [Continuous integration](#continuous-integration)
 below for how these are built.
 
-> [!NOTE]
+> [!CAUTION]
 > **`ActivityMonitor.exe` is not code-signed**, so Windows will show a
 > "Windows protected your PC" / Microsoft Defender SmartScreen warning the
 > first time you run it on another machine. This is expected for a small,
