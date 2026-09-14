@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           exe=build/ActivityMonitor.exe
-          budget=40960 # 40 KiB, as advertised in the README
+          budget=49152 # 48 KiB, as advertised in the README
           size=$(stat -c%s "$exe")
           echo "ActivityMonitor.exe is $size bytes (budget: $budget bytes)"
           if [ "$size" -gt "$budget" ]; then

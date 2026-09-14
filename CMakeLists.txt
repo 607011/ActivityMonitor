@@ -40,7 +40,7 @@ add_executable(ActivityMonitor WIN32
     src/resource.rc
 )
 
-target_link_libraries(ActivityMonitor PRIVATE pdh gdi32 user32 comctl32)
+target_link_libraries(ActivityMonitor PRIVATE pdh gdi32 user32 comctl32 shell32)
 target_compile_definitions(ActivityMonitor PRIVATE UNICODE _UNICODE NOMINMAX WIN32_LEAN_AND_MEAN)
 target_include_directories(ActivityMonitor PRIVATE ${CMAKE_BINARY_DIR}/generated)
 

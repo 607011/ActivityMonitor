@@ -37,6 +37,12 @@ namespace
     constexpr int kBarWidth = 3;
     constexpr int kBarGap = 2;
     constexpr int kBarPitch = kBarWidth + kBarGap;
+
+    // Tray icon plumbing.
+    constexpr UINT WM_TRAYICON = WM_APP + 1;
+    constexpr UINT_PTR kTrayIconId = 1;
+    constexpr UINT kMenuIdShow = 1001;
+    constexpr UINT kMenuIdExit = 1002;
 }
 
 GraphWindow::GraphWindow() = default;
@@ -95,6 +101,25 @@ LRESULT GraphWindow::HandleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lP
         return 0;
     case WM_ERASEBKGND:
         return 1; // avoid flicker; we paint the whole client area ourselves
+    case WM_CLOSE:
+        // Hide to the tray instead of closing; the app keeps running in the
+        // background until "Exit" is chosen from the tray context menu.
+        HideToTray();
+        return 0;
+    case WM_SYSCOMMAND:
+        if ((wParam & 0xFFF0) == SC_MINIMIZE)
+        {
+            HideToTray();
+            return 0;
+        }
+        return DefWindowProc(hwnd, msg, wParam, lParam);
+    case WM_TRAYICON:
+        OnTrayIconMessage(lParam);
+        return 0;
+    case WM_COMMAND:
+        if (HandleTrayMenuCommand(LOWORD(wParam)))
+            return 0;
+        return DefWindowProc(hwnd, msg, wParam, lParam);
     case WM_DESTROY:
         OnDestroy();
         return 0;
@@ -197,16 +222,24 @@ HFONT GraphWindow::CreateMonospaceFont(int pointHeight, int weight)
 
 void GraphWindow::OnCreate(HWND hwnd)
 {
+    // WM_CREATE fires synchronously inside CreateWindowEx, before it has
+    // returned and assigned m_hwnd in Create() - anything here that needs
+    // the window handle (SetupTrayIcon, in particular) must use this local
+    // parameter rather than the not-yet-set m_hwnd member.
+    m_hwnd = hwnd;
+
     m_labelFont = CreateMonospaceFont(14, FW_NORMAL);
     m_titleFont = CreateMonospaceFont(14, FW_SEMIBOLD);
 
     CreateSegmentBrush();
+    SetupTrayIcon();
 
     SetTimer(hwnd, kTimerId, kUpdateIntervalMs, nullptr);
 
     // Take one immediate sample so the window isn't empty for a full second.
     m_monitor.Update();
     m_hasData = true;
+    UpdateTrayIcon();
 }
 
 void GraphWindow::CreateSegmentBrush()
@@ -248,6 +281,8 @@ void GraphWindow::OnTimer()
     wchar_t title[128];
     swprintf_s(title, L"CPU Activity Monitor - Total: %.0f%%", m_monitor.GetTotalUsage());
     SetWindowText(m_hwnd, title);
+
+    UpdateTrayIcon();
 
     InvalidateRect(m_hwnd, nullptr, FALSE);
 }
@@ -308,8 +343,188 @@ void GraphWindow::OnPaint(HWND hwnd)
 
 void GraphWindow::OnDestroy()
 {
+    RemoveTrayIcon();
     KillTimer(m_hwnd, kTimerId);
     PostQuitMessage(0);
+}
+
+// --- System tray -----------------------------------------------------------
+
+void GraphWindow::SetupTrayIcon()
+{
+    ZeroMemory(&m_trayIconData, sizeof(m_trayIconData));
+    m_trayIconData.cbSize = sizeof(m_trayIconData);
+    m_trayIconData.hWnd = m_hwnd;
+    m_trayIconData.uID = kTrayIconId;
+    m_trayIconData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    m_trayIconData.uCallbackMessage = WM_TRAYICON;
+    m_trayIconData.hIcon = CreateTrayIconForUsage(0.0);
+    wcscpy_s(m_trayIconData.szTip, L"CPU Activity Monitor");
+
+    m_trayIconVisible = Shell_NotifyIcon(NIM_ADD, &m_trayIconData) != FALSE;
+
+    if (m_trayIconData.hIcon)
+    {
+        DestroyIcon(m_trayIconData.hIcon);
+        m_trayIconData.hIcon = nullptr;
+    }
+}
+
+void GraphWindow::UpdateTrayIcon()
+{
+    if (!m_trayIconVisible)
+        return;
+
+    double avg = m_monitor.GetTotalUsage();
+
+    HICON icon = CreateTrayIconForUsage(avg);
+    m_trayIconData.uFlags = NIF_ICON | NIF_TIP;
+    m_trayIconData.hIcon = icon;
+    swprintf_s(m_trayIconData.szTip, L"CPU Activity Monitor - %.0f%%", avg);
+
+    Shell_NotifyIcon(NIM_MODIFY, &m_trayIconData);
+
+    // Shell_NotifyIcon copies what it needs internally, so the icon handle
+    // can (and should) be freed right away rather than accumulating GDI
+    // handles - a fresh one is created on every tick anyway.
+    if (icon)
+        DestroyIcon(icon);
+    m_trayIconData.hIcon = nullptr;
+}
+
+void GraphWindow::RemoveTrayIcon()
+{
+    if (!m_trayIconVisible)
+        return;
+
+    Shell_NotifyIcon(NIM_DELETE, &m_trayIconData);
+    m_trayIconVisible = false;
+}
+
+void GraphWindow::ShowMainWindow()
+{
+    ShowWindow(m_hwnd, SW_RESTORE);
+    ShowWindow(m_hwnd, SW_SHOW);
+    SetForegroundWindow(m_hwnd);
+}
+
+void GraphWindow::HideToTray()
+{
+    ShowWindow(m_hwnd, SW_HIDE);
+}
+
+void GraphWindow::ShowTrayMenu()
+{
+    POINT pt;
+    GetCursorPos(&pt);
+
+    HMENU menu = CreatePopupMenu();
+    AppendMenu(menu, MF_STRING, kMenuIdShow, L"Show");
+    AppendMenu(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenu(menu, MF_STRING, kMenuIdExit, L"Exit");
+
+    // Required so the popup menu closes properly if the user clicks away
+    // from it instead of choosing an item (standard tray-icon menu dance).
+    SetForegroundWindow(m_hwnd);
+    TrackPopupMenu(menu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_hwnd, nullptr);
+    PostMessage(m_hwnd, WM_NULL, 0, 0);
+
+    DestroyMenu(menu);
+}
+
+void GraphWindow::OnTrayIconMessage(LPARAM lParam)
+{
+    switch (lParam)
+    {
+    case WM_LBUTTONUP:
+    case WM_LBUTTONDBLCLK:
+        ShowMainWindow();
+        break;
+    case WM_RBUTTONUP:
+        ShowTrayMenu();
+        break;
+    default:
+        break;
+    }
+}
+
+bool GraphWindow::HandleTrayMenuCommand(UINT commandId)
+{
+    switch (commandId)
+    {
+    case kMenuIdShow:
+        ShowMainWindow();
+        return true;
+    case kMenuIdExit:
+        DestroyWindow(m_hwnd);
+        return true;
+    default:
+        return false;
+    }
+}
+
+// Draws a small live gauge into a tray-icon-sized bitmap: a bar filling from
+// the bottom in proportion to the overall (all-core average) CPU usage, in
+// the app's own light-green-on-dark-green theme. Called every timer tick, so
+// the tray icon animates in step with the main window's bar charts.
+HICON GraphWindow::CreateTrayIconForUsage(double averagePercent)
+{
+    HDC screenDc = GetDC(nullptr);
+
+    int w = GetSystemMetrics(SM_CXSMICON);
+    int h = GetSystemMetrics(SM_CYSMICON);
+    if (w <= 0) w = 16;
+    if (h <= 0) h = 16;
+
+    HDC memDc = CreateCompatibleDC(screenDc);
+    HBITMAP colorBmp = CreateCompatibleBitmap(screenDc, w, h);
+    HGDIOBJ oldBmp = SelectObject(memDc, colorBmp);
+
+    RECT full{0, 0, w, h};
+    HBRUSH bgBrush = CreateSolidBrush(kPanelBgColor);
+    FillRect(memDc, &full, bgBrush);
+    DeleteObject(bgBrush);
+
+    double v = std::clamp(averagePercent, 0.0, 100.0);
+    int margin = std::max(1, w / 8);
+    int barAreaHeight = h - 2 * margin;
+    int barHeight = static_cast<int>(std::lround(v / 100.0 * barAreaHeight));
+    if (v > 0.0 && barHeight < 1)
+        barHeight = 1; // always show at least a sliver for any non-zero load
+
+    if (barHeight > 0)
+    {
+        RECT bar{margin, h - margin - barHeight, w - margin, h - margin};
+        HBRUSH barBrush = CreateSolidBrush(kBarColor);
+        FillRect(memDc, &bar, barBrush);
+        DeleteObject(barBrush);
+    }
+
+    SelectObject(memDc, oldBmp);
+    DeleteDC(memDc);
+    ReleaseDC(nullptr, screenDc);
+
+    // A fully black AND-mask makes the color bitmap opaque everywhere -
+    // there's no need for real transparency since the background fill above
+    // already covers the whole icon square.
+    HBITMAP maskBmp = CreateBitmap(w, h, 1, 1, nullptr);
+    HDC maskDc = CreateCompatibleDC(nullptr);
+    HGDIOBJ oldMaskBmp = SelectObject(maskDc, maskBmp);
+    RECT maskFull{0, 0, w, h};
+    FillRect(maskDc, &maskFull, static_cast<HBRUSH>(GetStockObject(BLACK_BRUSH)));
+    SelectObject(maskDc, oldMaskBmp);
+    DeleteDC(maskDc);
+
+    ICONINFO ii{};
+    ii.fIcon = TRUE;
+    ii.hbmMask = maskBmp;
+    ii.hbmColor = colorBmp;
+    HICON icon = CreateIconIndirect(&ii);
+
+    DeleteObject(colorBmp);
+    DeleteObject(maskBmp);
+
+    return icon;
 }
 
 void GraphWindow::Render(HDC hdc, RECT clientRect)

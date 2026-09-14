@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+#include <shellapi.h>
 #include <memory>
 #include "CpuMonitor.h"
 
@@ -31,6 +32,19 @@ private:
     void CreateSegmentBrush();
     static HFONT CreateMonospaceFont(int pointHeight, int weight);
 
+    // System tray icon: a small live gauge of the overall (all-core average)
+    // CPU usage, redrawn every timer tick, plus minimize/close-to-tray
+    // behavior so the app can run quietly in the background.
+    void SetupTrayIcon();
+    void UpdateTrayIcon();
+    void RemoveTrayIcon();
+    void ShowMainWindow();
+    void HideToTray();
+    void ShowTrayMenu();
+    void OnTrayIconMessage(LPARAM lParam);
+    bool HandleTrayMenuCommand(UINT commandId);
+    static HICON CreateTrayIconForUsage(double averagePercent);
+
     static constexpr UINT_PTR kTimerId = 1;
     static constexpr UINT kUpdateIntervalMs = 1000;
 
@@ -49,6 +63,9 @@ private:
     // Pattern brush that tiles alternating "lit segment" / "gap" rows,
     // giving bars a discrete, LED-matrix-like look instead of a solid fill.
     HBRUSH m_segmentBrush = nullptr;
+
+    NOTIFYICONDATA m_trayIconData{};
+    bool m_trayIconVisible = false;
 
     bool m_hasData = false;
 };
