@@ -1,0 +1,7 @@
+// Application resources. The DPI-awareness manifest is supplied to the
+// linker directly (see CMakeLists.txt) rather than embedded here, to avoid
+// clashing with the manifest MSVC's linker generates by default.
+#include "resource.h"
+
+IDI_APPICON ICON "../app.ico"
+

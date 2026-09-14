@@ -1,0 +1,27 @@
+# Build output
+build/
+out/
+x64/
+x86/
+Debug/
+Release/
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.exp
+*.lib
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+
+# Editor / IDE
+.vs/
+.vscode/
+*.user
+
+# Claude Code project metadata (local session state, not part of the app)
+.claude/
