@@ -22,6 +22,17 @@ for every version tag (`vX.Y.Z`), as a zip containing `ActivityMonitor.exe`
 plus a `.sha256` checksum file. See [Continuous integration](#continuous-integration)
 below for how these are built.
 
+> [!NOTE]
+> **`ActivityMonitor.exe` is not code-signed**, so Windows will show a
+> "Windows protected your PC" / Microsoft Defender SmartScreen warning the
+> first time you run it on another machine. This is expected for a small,
+> unsigned freeware tool - not a sign of tampering. Verify the download's
+> integrity with the `.sha256` file if you want to be sure, then click
+> **More info -> Run anyway** to start it. A proper code-signing
+> certificate (or a free one via [SignPath Foundation](https://signpath.org/))
+> is more than this project currently justifies, given it has no
+> significant user base yet.
+
 ## How it works
 
 - **`CpuMonitor`** (`src/CpuMonitor.h/.cpp`) opens one PDH counter per
