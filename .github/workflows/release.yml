@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Check out
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Derive version from tag
         id: version
@@ -32,7 +32,7 @@ jobs:
           arch: x64
 
       - name: Set up Ninja
-        uses: seanmiddleditch/gha-setup-ninja@v5
+        uses: seanmiddleditch/gha-setup-ninja@v6
 
       - name: Configure
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DAPP_VERSION=${{ steps.version.outputs.version }}
@@ -70,7 +70,7 @@ jobs:
           echo "zip_name=$zipName" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: ActivityMonitor ${{ steps.version.outputs.version }}
           generate_release_notes: true
